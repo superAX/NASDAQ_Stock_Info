@@ -7,6 +7,7 @@ Project: NASDAQ Stock Info Crawler
 
 import pandas as pd
 import sys
+import csv
 import requests
 import time
 import aiohttp
@@ -72,7 +73,7 @@ class Crawler:
         self.targetList = targetList
     
     # If csvFlag is true, this function will generate a .csv file in the end 
-    def getData(self, csvFlag = True) :
+    def getData(self) :
         # The dataframe which is used to store info for each stock
         stockDF = pd.DataFrame(columns = ('Company', 'Symbol', 'Best Bid/Ask', '1 Year Target', 'Today\'s High/Low', \
                                           'Share Volume', '50 Day Avg. Daily Volume', 'Previous Close', '52 Week High/Low', \
@@ -97,9 +98,9 @@ class Crawler:
                         dataDict[name] = each2.get_text().replace("\xa0", " ").replace(' / ', '/').strip()
                     flag += 1
             stockDF = stockDF.append(dataDict, ignore_index = True)
-        if (csvFlag) : 
-            timeStr = time.strftime("%Y-%m-%d-%H-%M", time.localtime())
-            stockDF.to_csv("report/" + timeStr + ".csv", index=False)
+        
+        timeStr = time.strftime("%Y-%m-%d-%H-%M", time.localtime())
+        stockDF.to_csv("report/" + timeStr + ".csv", index=False)
         return stockDF
     
     # download the html for each stock    
@@ -119,9 +120,11 @@ The speed is faster than Crawler when num of stocks is very large
 class AsyCrawler:        
     def __init__(self, urlList) :
         self.urlList = urlList
+        self.timeStr = time.strftime("%Y-%m-%d-%H-%M", time.localtime())
+
     
     # If csvFlag is true, this function will generate a .csv file in the end 
-    async def getData(self, loop, csvFlag = True) :        
+    async def getData(self, loop) :        
         # The dataframe which is used to store info for each stock
         stockDF = pd.DataFrame(columns = ('Company', 'Symbol', 'Best Bid/Ask', '1 Year Target', 'Today\'s High/Low', \
                                           'Share Volume', '50 Day Avg. Daily Volume', 'Previous Close', '52 Week High/Low', \
@@ -135,9 +138,7 @@ class AsyCrawler:
             for each in finish :
                 if each != None :
                     stockDF = stockDF.append(each.result(), ignore_index = True) 
-        if csvFlag : 
-           timeStr = time.strftime("%Y-%m-%d-%H-%M", time.localtime())
-           stockDF.to_csv("report/" + timeStr + ".csv", index=False)
+                    self.append_csv("report/" + self.timeStr + ".csv", stockDF.iloc[-1,:].values.tolist())
         return stockDF
     
     # download the html and extract data for each stock    
@@ -161,3 +162,8 @@ class AsyCrawler:
                         dataDict[name] = each2.get_text().replace("\xa0", " ").replace(' / ', '/').strip()
                     flag += 1
             return dataDict
+        
+    def append_csv(self, path, data) :
+         with open(path, "a+", newline='') as file:
+             csv_file = csv.writer(file)
+             csv_file.writerows(datas)

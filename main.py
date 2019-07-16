@@ -7,6 +7,7 @@ Project: NASDAQ Stock Info Crawler
 
 from flask import Flask, request, render_template
 import dataExtraction as de
+import asyncio
 
 app = Flask(__name__) 
 
@@ -19,8 +20,15 @@ def index():
         userInput = request.form['stockList']    
         for each in userInput.split(',') :
             stockList.append(each.strip())
+        
         urlList = de.StockListGenerator(stockList).extract()
-        crawler = de.Crawler(urlList).getData().values.tolist()
+        # async way, not work in every IDE. Need further modified
+        loop = asyncio.get_event_loop()
+        asy = de.AsyCrawler(urlList)
+        crawler = loop.run_until_complete(asy.getData(loop))
+        loop.close()
+        # normal way 
+        #crawler = de.Crawler(urlList).getData().values.tolist()
         return render_template("index.html", crawler=crawler)  
     else :
         # Stay the same page, aviod 405 error
