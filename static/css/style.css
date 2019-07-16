@@ -1,0 +1,24 @@
+body {
+    background-image: url(./background.jpg);
+    background-repeat: no-repeat;
+    -webkit-background-size: cover !important;
+    -moz-background-size: cover !important;
+    -o-background-size: cover !important;
+     background-size: cover !important;
+}
+
+h1 {
+    text-align: center;
+    color: yellow;
+}
+
+table {
+    color: yellow;
+    border: 1px solid yellow;
+    text-align: center;
+    empty-cells: hide;
+    font-size: 14px; 
+    width:100%;
+}
+
+

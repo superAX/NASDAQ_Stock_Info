@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NASDAQ Stock Info</title>
+    <link rel="stylesheet" type="text/css" href="{{url_for('static', filename='css/style.css')}}"> 
+    <script>
+        function update(url) {
+            $.ajax({
+                type:"POST",
+                url : url,
+                dataType: "html"
+                success: function(data) {
+                    $("div1").html(data);
+                },
+                error:function() {
+                    $("div1").html("failure");
+                }
+            });
+        } 
+    </script>
+</head>
+<body>
+    <h1>NASDAQ Stock Info</h1>
+    <form action="/", method="POST"， style="float:left">
+        <center><label style="Color: Yellow">Enter Symbol Codes here :</label>
+        <input type="text" name="stockList" placeholder="eg: GOOGL, AMZN, YI || AMZN" size=80/>  
+        <button onclick="update(/data)">Search</buttom></center>
+    </form>
+    <form action="/companyInfo", method="GET">
+        <input type="submit" value="Company List"/></center>    
+    </from>
+    <br/><br/>
+    
+    <div id = "data">
+        <table style="float:center">
+            <tr>
+                <th>Company Name</th>
+                <th>Symbol</th>
+                <th>Best Bid/Ask</th>
+                <th>1 Year Target</th>
+                <th>Today's High/Low</th>
+                <th>Share Volume</th>
+                <th>50 Day Avg. Daily Volume</th>
+                <th>Previous Close</th>
+                <th>52 Week High/Low</th>
+                <th>Market Cap</th>
+                <th>P/E Ratio</th>
+                <th>Forward P/E (1y)</th>   
+                <th>Earnings Per Share (EPS)</th>   
+                <th>Annualized Dividend</th>
+                <th>Ex Dividend Date</th>
+                <th>Dividend Payment Date</th> 
+                <th>Current Yield</th>
+                <th>Beta</th>
+            </tr>
+            {% for each in crawler %}
+                <tr>    
+                    <td> {{each[0]}} </td>  
+                    <td> {{each[1]}} </td>
+                    <td> {{each[2]}} </td>  
+                    <td> {{each[3]}} </td>
+                    <td> {{each[4]}} </td>
+                    <td> {{each[5]}} </td>
+                    <td> {{each[6]}} </td>
+                    <td> {{each[7]}} </td>
+                    <td> {{each[8]}} </td>
+                    <td> {{each[9]}} </td>
+                    <td> {{each[10]}} </td>
+                    <td> {{each[11]}} </td>
+                    <td> {{each[12]}} </td>
+                    <td> {{each[13]}} </td>
+                    <td> {{each[14]}} </td>
+                    <td> {{each[15]}} </td>
+                    <td> {{each[16]}} </td>
+                    <td> {{each[17]}} </td>
+                </tr>
+            {% endfor %}
+        </table>
+    </div>
+</body>
+</html> 
