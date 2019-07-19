@@ -66,13 +66,13 @@ class StockListGenerator:
             if len(self.symbol_list) == 1 and self.symbol_list[0] == 'ALL':
                 for company in db['CompanyList'].find():
                     url_list.append(company['Summary Quote'])
-                    name_list.append(company['Symbol'])
+                    name_list.append(company['Name'])
             else:
                 # Use dict to search the user specified stock symbol
                 for selected in self.symbol_list:
                     each = db['CompanyList'].find_one({'Symbol': selected})
                     url_list.append(each['Summary Quote'])
-                    name_list.append(each['Symbol'])
+                    name_list.append(each['Name'])
             return zip(url_list, name_list)
 
     # Update the latest company list into database
@@ -116,14 +116,15 @@ class StockListGenerator:
 # This class is used to crawl data form NASDAQ in a async way
 class AsyCrawler:
     def __init__(self, urlList):
-        self.db = Accessory.accessDB('NASDAQ')
+        #self.db = Accessory.accessDB('NASDAQ')
         self.urlList = urlList
         self.output = []
 
     # Get the data and upload to the database
     @Accessory.logGenerator
     def getData(self):
-        loop = asyncio.get_event_loop()
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         loop.run_until_complete(self.__tasksGenerator(loop))
         loop.close()
         return self.output
@@ -136,7 +137,7 @@ class AsyCrawler:
             finish, unfinish = await asyncio.wait(all_stocks)
             for each in finish:
                 if each is not None:
-                    self.db['StockData'].insert_one(each.result())
+                    #self.db['StockData'].insert_one(each.result())
                     self.output.append(each.result())
 
     # download the html and extract data for each stock
