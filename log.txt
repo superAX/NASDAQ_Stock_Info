@@ -1,0 +1,10 @@
+[2019-07-19 00:52:36] Call function extract
+[2019-07-19 00:52:36] Call function getData
+[2019-07-19 00:56:10] Call function extract
+[2019-07-19 00:56:10] Call function getData
+[2019-07-19 00:56:14] Call function extract
+[2019-07-19 00:56:14] Call function getData
+[2019-07-19 00:56:17] Call function extract
+[2019-07-19 00:56:17] Call function getData
+[2019-07-19 01:00:25] Call function extract
+[2019-07-19 01:00:25] Call function getData

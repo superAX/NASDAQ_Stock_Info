@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Update</title>
+    <link rel="stylesheet" type="text/css" href="{{url_for('static', filename='css/style.css')}}">
+</head>
+<body>
+<div>
+    {% if flag %}
+        <h3>Success!</h3>
+    {% else %}
+        <h3>Failure to update...</h3>
+    {% endif %}
+</div>
+<br>
+<form action="/", method="GET">
+    <input type="submit" value="Go back"/>
+</from>
+</body>
+</html>

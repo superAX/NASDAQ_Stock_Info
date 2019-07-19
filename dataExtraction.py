@@ -6,164 +6,160 @@ Project: NASDAQ Stock Info Crawler
 """
 
 import pandas as pd
-import sys
 import csv
-import requests
+import sys
 import time
+import requests
 import aiohttp
 import asyncio
 from bs4 import BeautifulSoup
+import pymongo
 
-"""
-This class is used to extract the user customized url list of NASDAQ stocks
-The default url list includes all stocks 
-"""
-class StockListGenerator: 
-    count = 0
-    
-    def __init__(self, symbolList = ['ALL']) :
-        self.symbolList = symbolList
-    
-    def extract(self) :
-        urlList = []                          
-        nameList = []
-        
-        try :
-            stock_data = pd.read_csv('./companylist.csv', header = None)    # Load the stock info from the csv file
-        except :
+
+# This class includes some support function
+class Accessory:
+    @staticmethod
+    def accessDB(db_name):
+        client = pymongo.MongoClient(host='localhost')
+        return client[db_name]
+
+    @staticmethod
+    def logGenerator(func):
+        def wrapper(*args, **kwargs):
+            with open('./log.txt', 'a+') as f:
+                current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+                f.writelines("[%s] Call function %s\n" % (current_time, func.__name__))
+            return func(*args, **kwargs)
+        return wrapper
+
+
+# This class is used to extract the user customized url list of NASDAQ stocks
+class StockListGenerator:
+    __count = 0
+
+    # The default url list includes all stocks
+    def __init__(self, symbol_list=['ALL']):
+        self.symbol_list = symbol_list
+
+    # Generate the url and name list of selected stock
+    @Accessory.logGenerator
+    def extract(self):
+        url_list = []
+        name_list = []
+
+        try:
+            db = Accessory.accessDB("NASDAQ")
+        except Exception:
             # Try to download the csv file first 
-            if self.count == 0 :
-                print("File companylist.csv is missing or damaged. Try to download...")
-                self.download()
-                self.count += 1
+            if self.__count == 0:
+                print("Access Failure. One more try")
+                with open('./log.txt', 'a+') as f:
+                    f.writelines("    [Error] %s\n" % sys.exc_info()[0])
+                self.__count += 1
                 self.extract()
-            else :
-                print(sys.exc_info()[0])
+            else:
+                print("Unable to access the database")
+                with open('./log.txt', 'a+') as f:
+                    f.writelines("    [Error] %s\n" % sys.exc_info()[0])
                 pass
-        else :
-            if len(self.symbolList) == 1 and self.symbolList[0] == 'ALL' :
-                return zip(stock_data.iloc[1:,7].values.tolist(), stock_data.iloc[1:,1].values.tolist())                      
-        
-            # Use dict to search the user specified stock symbol
-            stock_data_dict = stock_data.set_index(0).T.to_dict('list')
-            for selected in self.symbolList :
-                if selected in stock_data_dict :
-                    urlList.append(str(stock_data_dict[selected][-2]))
-                    nameList.append(str(stock_data_dict[selected][0]))
-            return zip(urlList, nameList)
-    
-    
-    # This function is used to download the stock list file      
-    def download(self, url = "https://www.nasdaq.com/screening/companies-by-name.aspx?exchange=NASDAQ&render=download") :
-        try :
+        else:
+            if len(self.symbol_list) == 1 and self.symbol_list[0] == 'ALL':
+                for company in db['CompanyList'].find():
+                    url_list.append(company['Summary Quote'])
+                    name_list.append(company['Symbol'])
+            else:
+                # Use dict to search the user specified stock symbol
+                for selected in self.symbol_list:
+                    each = db['CompanyList'].find_one({'Symbol': selected})
+                    url_list.append(each['Summary Quote'])
+                    name_list.append(each['Symbol'])
+            return zip(url_list, name_list)
+
+    # Update the latest company list into database
+    @Accessory.logGenerator
+    def updateCompanyList(self, url="https://www.nasdaq.com/screening/companies-by-name.aspx?exchange=NASDAQ&render=download"):
+        self.__download(url)    # Download the latest company list
+        try:
+            db = Accessory.accessDB("NASDAQ")
+        except Exception:
+            print("Unable to access the database")
+            with open('./log.txt', 'a+') as f:
+                f.writelines("    [Error] %s\n" % sys.exc_info()[0])
+            return False
+        else:
+            db['CompanyList'].drop()
+            with open('./companylist.csv', 'r') as csv_file:
+                companys = csv.reader(csv_file)
+                next(companys)    # Skip the tile row
+                for company in companys:
+                    company_dict = {'Symbol': company[0], 'Name': company[1], 'LastSale': company[2],
+                                    'MarketCap': company[3], 'IPOyear': company[4], 'Sector': company[5],
+                                    'industry': company[6], 'Summary Quote': company[7]}
+                    db['CompanyList'].insert_one(company_dict)
+            return True
+
+    # Download the stock list file
+    @Accessory.logGenerator
+    def __download(self, url):
+        try:
             r = requests.get(url)
-            with open('./companylist.csv', 'wb') as f :
+            with open('./companylist.csv', 'wb') as f:
                 f.write(r.content)
-        except :
+        except Exception:
             print("Unable to download.")
-            print(sys.exc_info()[0])
-        else :
+            with open('./log.txt', 'a+') as f:
+                f.writelines("    [Error] %s\n" % sys.exc_info()[0])
+        else:
             print("Download Success")
 
-"""
-This class is used to download user specified stocks info and generate a dataframe type output
-"""
-class Crawler:        
-    def __init__(self, targetList) :
-        self.targetList = targetList
-    
-    # If csvFlag is true, this function will generate a .csv file in the end 
-    def getData(self) :
-        # The dataframe which is used to store info for each stock
-        stockDF = pd.DataFrame(columns = ('Company', 'Symbol', 'Best Bid/Ask', '1 Year Target', 'Today\'s High/Low', \
-                                          'Share Volume', '50 Day Avg. Daily Volume', 'Previous Close', '52 Week High/Low', \
-                                          'Market Cap', 'P/E Ratio', 'Forward P/E (1y)', 'Earnings Per Share (EPS)', \
-                                          'Annualized Dividend', 'Ex Dividend Date', 'Dividend Payment Date', 'Current Yield', \
-                                          'Beta'))
-        
-        for url, name in self.targetList :
-            dataDict = {}                     # Use dict to store info and add to the dataframe
-            content = self.__loadHtml(url)    # Load the html for each stock    
-            if content == None :              # skip if the html file is not correctly downloaded
-                continue
-            soup = BeautifulSoup(content, 'lxml')
-            dataDict['Company'], dataDict['Symbol']  = name, url.split('/')[-1]
-            name, flag = " ", 0
-            dataInfo = soup.find_all('div', {'class':'column span-1-of-2'})
-            for each1 in dataInfo :
-                for each2 in each1.find_all('div', {'class': 'table-cell'}) : 
-                    if (flag%2 == 0) :
-                        name = each2.get_text().replace(' / ', '/').strip()
-                    else :
-                        dataDict[name] = each2.get_text().replace("\xa0", " ").replace(' / ', '/').strip()
-                    flag += 1
-            stockDF = stockDF.append(dataDict, ignore_index = True)
-        
-        timeStr = time.strftime("%Y-%m-%d-%H-%M", time.localtime())
-        stockDF.to_csv("report/" + timeStr + ".csv", index=False)
-        return stockDF
-    
-    # download the html for each stock    
-    def __loadHtml(self, url) :
-        try :
-            r = requests.get(url)  
-        except :
-            print("Unable to connect.")
-            print(sys.exc_info()[0])            
-        else :    
-            return r.text
-    
-"""
-This class performs the same function as Class 'Crawler' but uses async way instead.
-The speed is faster than Crawler when num of stocks is very large
-"""
-class AsyCrawler:        
-    def __init__(self, urlList) :
-        self.urlList = urlList
-        self.timeStr = time.strftime("%Y-%m-%d-%H-%M", time.localtime())
 
-    
-    # If csvFlag is true, this function will generate a .csv file in the end 
-    async def getData(self, loop) :        
-        # The dataframe which is used to store info for each stock
-        stockDF = pd.DataFrame(columns = ('Company', 'Symbol', 'Best Bid/Ask', '1 Year Target', 'Today\'s High/Low', \
-                                          'Share Volume', '50 Day Avg. Daily Volume', 'Previous Close', '52 Week High/Low', \
-                                          'Market Cap', 'P/E Ratio', 'Forward P/E (1y)', 'Earnings Per Share (EPS)', \
-                                          'Annualized Dividend', 'Ex Dividend Date', 'Dividend Payment Date', 'Current Yield', \
-                                          'Beta'))
-        
+# This class is used to crawl data form NASDAQ in a async way
+class AsyCrawler:
+    def __init__(self, urlList):
+        self.db = Accessory.accessDB('NASDAQ')
+        self.urlList = urlList
+        self.output = []
+
+    # Get the data and upload to the database
+    @Accessory.logGenerator
+    def getData(self):
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(self.__tasksGenerator(loop))
+        loop.close()
+        return self.output
+
+    # Generate a sequence of tasks for async use
+    @Accessory.logGenerator
+    async def __tasksGenerator(self, loop):
         async with aiohttp.ClientSession() as session:
-            allStocks = [loop.create_task(self.__loadHtml(session, each))for each in self.urlList]
-            finish, unfinish = await asyncio.wait(allStocks)
-            for each in finish :
-                if each != None :
-                    stockDF = stockDF.append(each.result(), ignore_index = True) 
-                    self.append_csv("report/" + self.timeStr + ".csv", stockDF.iloc[-1,:].values.tolist())
-        return stockDF
-    
-    # download the html and extract data for each stock    
-    async def __loadHtml(self, session, url) :
-        try :
+            all_stocks = [loop.create_task(self.__loadHtml(session, url, name)) for url, name in self.urlList]
+            finish, unfinish = await asyncio.wait(all_stocks)
+            for each in finish:
+                if each is not None:
+                    self.db['StockData'].insert_one(each.result())
+                    self.output.append(each.result())
+
+    # download the html and extract data for each stock
+    @Accessory.logGenerator
+    async def __loadHtml(self, session, url, name):
+        try:
             r = await session.get(url)
-        except :
+        except Exception:
             print("Unable to connect.")
-            print(sys.exc_info()[0])            
-        else :    
-            dataDict = {}                                    # Use dict to store info and add to the dataframe
-            soup = BeautifulSoup(await r.text(), 'lxml')     # wait until the html file fully downloaded
-            dataDict['Company'], dataDict['Symbol']  = soup.h1.get_text().split("Common Stock")[0].strip(), url.split('/')[-1]
+            with open('./log.txt', 'a+') as f:
+                f.writelines("    [Error] %s\n" % sys.exc_info()[0])
+            return []
+        else:
+            current_time = time.strftime("%Y/%m/%d %H:%M", time.localtime())
+            stock_dict = {'Company': name, 'Symbol': url.split('/')[-1], 'Record Time': current_time}
+            soup = BeautifulSoup(await r.text(), 'lxml')    # wait until the html file fully downloaded
             name, flag = " ", 0
-            dataInfo = soup.find_all('div', {'class':'column span-1-of-2'})
-            for each1 in dataInfo :
-                for each2 in each1.find_all('div', {'class': 'table-cell'}) : 
-                    if (flag%2 == 0) :
-                        name = each2.get_text().replace(' / ', '/').strip()
-                    else :
-                        dataDict[name] = each2.get_text().replace("\xa0", " ").replace(' / ', '/').strip()
+            dataInfo = soup.find_all('div', {'class': 'column span-1-of-2'})
+            for each1 in dataInfo:
+                for each2 in each1.find_all('div', {'class': 'table-cell'}):
+                    if flag % 2 == 0:
+                        name = each2.get_text().replace(' / ', '/').replace('.', ' ').strip()
+                    else:
+                        stock_dict[name] = each2.get_text().replace("\xa0", " ").replace(' / ', '/').strip()
                     flag += 1
-            return dataDict
-        
-    def append_csv(self, path, data) :
-         with open(path, "a+", newline='') as file:
-             csv_file = csv.writer(file)
-             csv_file.writerows(datas)
+            return stock_dict

@@ -12,6 +12,11 @@ h1 {
     color: yellow;
 }
 
+h3 {
+    text-align: left;
+    color: yellow;
+}
+
 table {
     color: yellow;
     border: 1px solid yellow;
@@ -20,5 +25,3 @@ table {
     font-size: 14px; 
     width:100%;
 }
-
-

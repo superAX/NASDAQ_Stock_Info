@@ -1,8 +1,10 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>NASDAQ Stock Info</title>
-    <link rel="stylesheet" type="text/css" href="{{url_for('static', filename='css/style.css')}}"> 
+    <link rel="stylesheet" type="text/css" href="{{url_for('static', filename='css/style.css')}}">
+    <!--Refresh the search result-->
     <script>
         function update(url) {
             $.ajax({
@@ -26,9 +28,12 @@
         <input type="text" name="stockList" placeholder="eg: GOOGL, AMZN, YI || AMZN" size=80/>  
         <button onclick="update(/data)">Search</buttom></center>
     </form>
-    <form action="/companyInfo", method="GET">
-        <input type="submit" value="Company List"/></center>    
-    </from>
+    <form action="/companyInfo", method="POST", style="float:left">
+        <input type="submit" value="Company List"/>
+    </form>
+    <form action="/update", method="POST">
+        <input type="submit" value="Update"/>
+    </form>
     <br/><br/>
     
     <div id = "data">
@@ -55,24 +60,24 @@
             </tr>
             {% for each in crawler %}
                 <tr>    
-                    <td> {{each[0]}} </td>  
-                    <td> {{each[1]}} </td>
-                    <td> {{each[2]}} </td>  
-                    <td> {{each[3]}} </td>
-                    <td> {{each[4]}} </td>
-                    <td> {{each[5]}} </td>
-                    <td> {{each[6]}} </td>
-                    <td> {{each[7]}} </td>
-                    <td> {{each[8]}} </td>
-                    <td> {{each[9]}} </td>
-                    <td> {{each[10]}} </td>
-                    <td> {{each[11]}} </td>
-                    <td> {{each[12]}} </td>
-                    <td> {{each[13]}} </td>
-                    <td> {{each[14]}} </td>
-                    <td> {{each[15]}} </td>
-                    <td> {{each[16]}} </td>
-                    <td> {{each[17]}} </td>
+                    <td> {{each['Company']}} </td>
+                    <td> {{each['Symbol']}} </td>
+                    <td> {{each['Best Bid/Ask']}} </td>
+                    <td> {{each['1 Year Target']}} </td>
+                    <td> {{each['Today\'s High/Low']}} </td>
+                    <td> {{each['Share Volume']}} </td>
+                    <td> {{each['50 Day Avg  Daily Volume']}} </td>
+                    <td> {{each['Previous Close']}} </td>
+                    <td> {{each['52 Week High/Low']}} </td>
+                    <td> {{each['Market Cap']}} </td>
+                    <td> {{each['P/E Ratio']}} </td>
+                    <td> {{each['Forward P/E (1y)']}} </td>
+                    <td> {{each['Earnings Per Share (EPS)']}} </td>
+                    <td> {{each['Annualized Dividend']}} </td>
+                    <td> {{each['Ex Dividend Date']}} </td>
+                    <td> {{each['Dividend Payment Date']}} </td>
+                    <td> {{each['Current Yield']}} </td>
+                    <td> {{each['Beta']}} </td>
                 </tr>
             {% endfor %}
         </table>
